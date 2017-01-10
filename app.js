@@ -1,4 +1,5 @@
 const FS = require('fs');
+const Path = require('path');
 const Handlebars = require('handlebars');
 const Keypair = require('keypair');
 const Forge = require('node-forge');
@@ -8,7 +9,7 @@ const Async = require('async');
 const ShortId = require('shortid');
 
 let userName = process.env.USER || process.env.USERNAME || 'root';
-let outputFolderName = ShortId.generate();
+let outputFolderName = Path.join(__dirname, ShortId.generate());
 
 let questions = [
     {
@@ -20,32 +21,71 @@ let questions = [
     }
 ];
 
-readInputs(questions, () => {
+let templateText = '';
+let keyPair = null;
+let sshKey = null;
+
+Async.waterfall([
+    cb => {
+        readInputs(questions, cb);
+    },
+
     // read in the template file
-    FS.readFile('Dockerfile.template', 'utf8', (err, templateText) => {
-        if(!!err) {
-            console.error(`Couldn't read Dockerfile.template: ${err.toString()}`);
-        } else {
-            // compile the template
-            const template = Handlebars.compile(templateText);
+    (res, cb) => {
+        FS.readFile('Dockerfile.template', 'utf8', cb);
+    },
 
-            // build the keypair
-            const pair = Keypair();
+    // create output folder
+    (template, cb) => {
+        templateText = template;
+        FS.mkdir(outputFolderName, cb);
+    },
 
-            // create output folder
-            
+    cb => {
+        // build the keypair
+        keyPair = Keypair();
 
-            // save the private key
-            FS.writeFile
+        // save the private key
+        FS.writeFile(
+            Path.join(outputFolderName, 'id_rsa'),
+            keyPair.private,
+            { encoding: 'utf8' },
+            cb
+        );
+    },
 
-            const publicKey = Forge.pki.publicKeyFromPem(pair.public);
-            const context = {
-                publicKey: Forge.ssh.publicKeyToOpenSSH(publicKey, userName)
-            };
-            
-            console.log(template(context));
-        }
-    });
+    cb => {
+        const publicKey = Forge.pki.publicKeyFromPem(keyPair.public);
+        sshKey = Forge.ssh.publicKeyToOpenSSH(publicKey, userName);
+
+        FS.writeFile(
+            Path.join(outputFolderName, 'id_rsa.pub'),
+            sshKey,
+            { encoding: 'utf8' },
+            cb
+        );
+    },
+
+    cb => {
+        // compile the template
+        const template = Handlebars.compile(templateText);
+        const dockerFile = template({
+            publicKey: sshKey
+        });
+
+        FS.writeFile(
+            Path.join(outputFolderName, 'Dockerfile'),
+            dockerFile,
+            { encoding: 'utf8' },
+            cb
+        );
+    }
+], (err) => {
+    if(!!err) {
+        console.error(`Couldn't read Dockerfile.template: ${err.toString()}`);
+    } else {
+        console.log(`The SSH keys and Dockerfile are in the folder ${outputFolderName}`);
+    }
 });
 
 function readInputs(questions, callback) {
