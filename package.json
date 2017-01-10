@@ -1,0 +1,19 @@
+{
+  "name": "docker-linux-dev-image",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^2.1.4",
+    "handlebars": "^4.0.6",
+    "keypair": "^1.0.1",
+    "node-forge": "^0.6.46",
+    "shortid": "^2.2.6"
+  }
+}
