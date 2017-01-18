@@ -8,7 +8,7 @@ const Util = require('util');
 const Async = require('async');
 const ShortId = require('shortid');
 
-let userName = process.env.USER || process.env.USERNAME || 'root';
+let userName = 'root';
 let outputFolderName = Path.join(__dirname, ShortId.generate());
 
 let questions = [
@@ -32,20 +32,24 @@ Async.waterfall([
 
     // read in the template file
     (res, cb) => {
+        console.log('[*] Reading Dockerfile template.');
         FS.readFile('Dockerfile.template', 'utf8', cb);
     },
 
     // create output folder
     (template, cb) => {
+        console.log(`[*] Creating output folder ${outputFolderName}.`);
         templateText = template;
         FS.mkdir(outputFolderName, cb);
     },
 
     cb => {
         // build the keypair
+        console.log(`[*] Generating new keypair.`);
         keyPair = Keypair();
 
         // save the private key
+        console.log(`[*] Saving private key file.`);
         FS.writeFile(
             Path.join(outputFolderName, 'id_rsa'),
             keyPair.private,
@@ -55,6 +59,7 @@ Async.waterfall([
     },
 
     cb => {
+        console.log(`[*] Saving public key file.`);
         const publicKey = Forge.pki.publicKeyFromPem(keyPair.public);
         sshKey = Forge.ssh.publicKeyToOpenSSH(publicKey, userName);
 
@@ -73,6 +78,7 @@ Async.waterfall([
             publicKey: sshKey
         });
 
+        console.log(`[*] Generating Dockerfile.`);
         FS.writeFile(
             Path.join(outputFolderName, 'Dockerfile'),
             dockerFile,
@@ -84,7 +90,11 @@ Async.waterfall([
     if(!!err) {
         console.error(`Couldn't read Dockerfile.template: ${err.toString()}`);
     } else {
-        console.log(`The SSH keys and Dockerfile are in the folder ${outputFolderName}`);
+        console.log(
+`
+> The SSH keys and Dockerfile are in the folder ${outputFolderName}.
+`
+        );
     }
 });
 
