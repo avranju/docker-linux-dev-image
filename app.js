@@ -1,4 +1,4 @@
-const FS = require('fs');
+const FS = require('fs-extra');
 const Path = require('path');
 const Handlebars = require('handlebars');
 const Keypair = require('keypair');
@@ -9,7 +9,7 @@ const Async = require('async');
 const ShortId = require('shortid');
 
 let userName = 'root';
-let outputFolderName = Path.join(__dirname, ShortId.generate());
+let outputFolderName = Path.join(__dirname, 'output', ShortId.generate());
 
 let questions = [
     {
@@ -26,12 +26,8 @@ let keyPair = null;
 let sshKey = null;
 
 Async.waterfall([
-    cb => {
-        readInputs(questions, cb);
-    },
-
     // read in the template file
-    (res, cb) => {
+    cb => {
         console.log('[*] Reading Dockerfile template.');
         FS.readFile('Dockerfile.template', 'utf8', cb);
     },
@@ -40,10 +36,10 @@ Async.waterfall([
     (template, cb) => {
         console.log(`[*] Creating output folder ${outputFolderName}.`);
         templateText = template;
-        FS.mkdir(outputFolderName, cb);
+        FS.mkdirp(outputFolderName, cb);
     },
 
-    cb => {
+    (dir, cb) => {
         // build the keypair
         console.log(`[*] Generating new keypair.`);
         keyPair = Keypair();
